@@ -17,6 +17,6 @@ app.listen(PORT, () => {
   console.log(`[HTTP] Backend running on http://localhost:${PORT}`);
 });
 
-// Start embedded MQTT broker (replaces ThingsBoard as MQTT receiver)
-const { startMqttBroker } = require('./mqtt/broker');
-startMqttBroker();
+// Subscribe to live telemetry from ThingsBoard
+const { startThingsBoardSubscriber } = require('./thingsboard/subscriber');
+startThingsBoardSubscriber();

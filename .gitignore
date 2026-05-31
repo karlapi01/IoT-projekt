@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Database
+backend/data/
+
+# Environment variables
+backend/.env
+.env
+
+# Build output
+frontend/dist/
+
+# Editor
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

@@ -25,6 +25,7 @@ db.exec(`
     location TEXT,
     tenant_id INTEGER NOT NULL REFERENCES users(id),
     mqtt_token TEXT UNIQUE,
+    tb_device_id TEXT UNIQUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -32,7 +33,8 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     menza_id INTEGER NOT NULL REFERENCES menze(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    is_virtual INTEGER DEFAULT 0
+    is_virtual INTEGER DEFAULT 0,
+    UNIQUE(menza_id, name)
   );
 
   CREATE TABLE IF NOT EXISTS zone_states (
