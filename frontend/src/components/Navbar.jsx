@@ -1,7 +1,8 @@
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-const ROLE_LABEL = { admin: 'Admin', tenant: 'Tenant', customer: 'Student' };
+const ROLE_LABEL = { admin: 'Admin', customer: 'Customer', student: 'Student' };
+const ROLE_COLOR = { admin: 'red', customer: 'blue', student: 'green' };
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -17,7 +18,7 @@ export default function Navbar() {
       <h1>Redometar</h1>
       <div className="nav-right">
         <span>{user?.name}</span>
-        <span className={`badge badge-${user?.role === 'admin' ? 'red' : user?.role === 'tenant' ? 'blue' : 'green'}`}>
+        <span className={`badge badge-${ROLE_COLOR[user?.role] ?? 'green'}`}>
           {ROLE_LABEL[user?.role]}
         </span>
         <button className="btn btn-secondary" onClick={handleLogout}>Odjava</button>

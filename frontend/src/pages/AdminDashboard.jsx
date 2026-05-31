@@ -6,7 +6,7 @@ export default function AdminDashboard() {
   const [users, setUsers]   = useState([]);
   const [menze, setMenze]   = useState([]);
   const [tab, setTab]       = useState('users');
-  const [modal, setModal]   = useState(null); // 'user' | 'menza'
+  const [modal, setModal]   = useState(null);
   const [form, setForm]     = useState({});
   const [error, setError]   = useState('');
   const [msg, setMsg]       = useState('');
@@ -25,7 +25,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     setError('');
     try {
-      await api.post('/users', form);
+      await api.post('/users', { ...form, menza_ids: form.menza_ids || [] });
       setMsg('Korisnik dodan.'); setModal(null); loadAll();
     } catch (err) { setError(err.message); }
   }
@@ -51,7 +51,12 @@ export default function AdminDashboard() {
     loadAll();
   }
 
-  const tenants = users.filter(u => u.role === 'tenant');
+  function toggleMenzaAccess(menzaId) {
+    const ids = form.menza_ids || [];
+    setForm({ ...form, menza_ids: ids.includes(menzaId) ? ids.filter(x => x !== menzaId) : [...ids, menzaId] });
+  }
+
+  const roleColor = { admin: 'red', customer: 'blue', student: 'green' };
 
   return (
     <>
@@ -81,8 +86,8 @@ export default function AdminDashboard() {
                   <tr key={u.id}>
                     <td>{u.name}</td>
                     <td>{u.email}</td>
-                    <td><span className={`badge badge-${u.role === 'admin' ? 'red' : u.role === 'tenant' ? 'blue' : 'green'}`}>{u.role}</span></td>
-                    <td>{new Date(u.created_at).toLocaleDateString('hr')}</td>
+                    <td><span className={`badge badge-${roleColor[u.role] ?? 'green'}`}>{u.role}</span></td>
+                    <td>{new Date(u.created_at + 'Z').toLocaleDateString('hr')}</td>
                     <td><button className="btn btn-danger" style={{ padding: '.25rem .7rem', fontSize: '.8rem' }} onClick={() => deleteUser(u.id)}>Obriši</button></td>
                   </tr>
                 ))}
@@ -98,15 +103,14 @@ export default function AdminDashboard() {
               <button className="btn btn-primary" onClick={() => openModal('menza')}>+ Nova menza</button>
             </div>
             <table>
-              <thead><tr><th>Naziv</th><th>Lokacija</th><th>Tenant</th><th>MQTT token</th><th>Kreirana</th><th></th></tr></thead>
+              <thead><tr><th>Naziv</th><th>Lokacija</th><th>MQTT token</th><th>Kreirana</th><th></th></tr></thead>
               <tbody>
                 {menze.map(m => (
                   <tr key={m.id}>
                     <td>{m.name}</td>
                     <td>{m.location || '—'}</td>
-                    <td>{m.tenant_name}</td>
                     <td><code style={{ fontSize: '.78rem', color: '#475569' }}>{m.mqtt_token || '—'}</code></td>
-                    <td>{new Date(m.created_at).toLocaleDateString('hr')}</td>
+                    <td>{new Date(m.created_at + 'Z').toLocaleDateString('hr')}</td>
                     <td><button className="btn btn-danger" style={{ padding: '.25rem .7rem', fontSize: '.8rem' }} onClick={() => deleteMenza(m.id)}>Obriši</button></td>
                   </tr>
                 ))}
@@ -126,12 +130,24 @@ export default function AdminDashboard() {
               <div className="form-group"><label>Lozinka</label><input type="password" required value={form.password||''} onChange={e => setForm({...form, password: e.target.value})} /></div>
               <div className="form-group">
                 <label>Uloga</label>
-                <select required value={form.role||''} onChange={e => setForm({...form, role: e.target.value})}>
+                <select required value={form.role||''} onChange={e => setForm({...form, role: e.target.value, menza_ids: []})}>
                   <option value="">-- odaberi --</option>
                   <option value="admin">admin</option>
-                  <option value="tenant">tenant</option>
+                  <option value="customer">customer (vlasnik menze)</option>
+                  <option value="student">student (read-only)</option>
                 </select>
               </div>
+              {form.role === 'customer' && (
+                <div className="form-group">
+                  <label>Pristup menzama</label>
+                  {menze.map(m => (
+                    <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '.5rem', fontWeight: 400, marginBottom: '.3rem' }}>
+                      <input type="checkbox" checked={(form.menza_ids||[]).includes(m.id)} onChange={() => toggleMenzaAccess(m.id)} />
+                      {m.name}
+                    </label>
+                  ))}
+                </div>
+              )}
               {error && <p className="error-msg">{error}</p>}
               <div style={{ display: 'flex', gap: '.5rem', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setModal(null)}>Odustani</button>
@@ -150,11 +166,8 @@ export default function AdminDashboard() {
               <div className="form-group"><label>Naziv</label><input required value={form.name||''} onChange={e => setForm({...form, name: e.target.value})} /></div>
               <div className="form-group"><label>Lokacija</label><input value={form.location||''} onChange={e => setForm({...form, location: e.target.value})} /></div>
               <div className="form-group">
-                <label>Tenant</label>
-                <select required value={form.tenant_id||''} onChange={e => setForm({...form, tenant_id: Number(e.target.value)})}>
-                  <option value="">-- odaberi --</option>
-                  {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
+                <label>Broj zona (1–10)</label>
+                <input type="number" min="1" max="10" value={form.zone_count||2} onChange={e => setForm({...form, zone_count: e.target.value})} />
               </div>
               {error && <p className="error-msg">{error}</p>}
               <div style={{ display: 'flex', gap: '.5rem', justifyContent: 'flex-end' }}>

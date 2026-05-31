@@ -2,15 +2,15 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
 import AdminDashboard from './pages/AdminDashboard';
-import TenantDashboard from './pages/TenantDashboard';
-import CustomerView from './pages/CustomerView';
+import CustomerDashboard from './pages/CustomerDashboard';
+import StudentView from './pages/StudentView';
 
 function RoleRedirect() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" />;
   if (user.role === 'admin')    return <Navigate to="/admin" />;
-  if (user.role === 'tenant')   return <Navigate to="/tenant" />;
   if (user.role === 'customer') return <Navigate to="/customer" />;
+  if (user.role === 'student')  return <Navigate to="/student" />;
   return <Navigate to="/login" />;
 }
 
@@ -31,11 +31,11 @@ export default function App() {
           <Route path="/admin/*" element={
             <RequireAuth roles={['admin']}><AdminDashboard /></RequireAuth>
           } />
-          <Route path="/tenant/*" element={
-            <RequireAuth roles={['tenant']}><TenantDashboard /></RequireAuth>
-          } />
           <Route path="/customer/*" element={
-            <RequireAuth roles={['customer']}><CustomerView /></RequireAuth>
+            <RequireAuth roles={['customer']}><CustomerDashboard /></RequireAuth>
+          } />
+          <Route path="/student/*" element={
+            <RequireAuth roles={['student']}><StudentView /></RequireAuth>
           } />
         </Routes>
       </BrowserRouter>

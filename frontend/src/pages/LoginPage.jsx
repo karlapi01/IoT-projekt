@@ -47,9 +47,10 @@ export default function LoginPage() {
         </form>
         <div style={{ marginTop: '1.5rem', background: '#f8fafc', borderRadius: 8, padding: '1rem', fontSize: '.82rem', color: '#475569' }}>
           <strong>Demo korisnici:</strong><br />
-          admin@redometar.hr / admin123<br />
-          tenant@fer.hr / tenant123<br />
-          ivan@student.hr / customer123
+          admin@redometar.hr / admin123 (admin)<br />
+          cassandra@fer.hr / customer123 (customer)<br />
+            sc@unizg.hr / sc123 (customer)<br />
+          ivan@student.hr / student123 (student)
         </div>
       </div>
     </div>
