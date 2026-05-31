@@ -54,10 +54,11 @@ export default function StudentView() {
   const [wait, setWait]         = useState(null);
   const [tab, setTab]           = useState('live');
 
-  const [waitMap, setWaitMap]       = useState({});   // menzaId → wait object
-  const [userPos, setUserPos]       = useState(null); // [lat, lng]
+  const [waitMap, setWaitMap]       = useState({});
+  const [userPos, setUserPos]       = useState(null);
   const [geoError, setGeoError]     = useState('');
   const [locating, setLocating]     = useState(false);
+  const [locationFilter, setLocationFilter] = useState(null); // null = sve
 
   useEffect(() => {
     api.get('/menze').then(m => { setMenze(m); if (m.length > 0) setSelected(m[0]); });
@@ -117,7 +118,14 @@ export default function StudentView() {
   }
 
   const occupiedCount = zones.filter(z => z.occupied).length;
-  const mappableMenze = menze.filter(m => m.lat && m.lng);
+
+  const locations = [...new Set(menze.map(m => m.location).filter(Boolean))].sort();
+
+  const filteredMenze = locationFilter
+    ? menze.filter(m => m.location === locationFilter)
+    : menze;
+
+  const mappableMenze = filteredMenze.filter(m => m.lat && m.lng);
 
   const sortedMenze = userPos
     ? [...mappableMenze].sort((a, b) =>
@@ -134,7 +142,30 @@ export default function StudentView() {
       <div className="page">
         <h2 style={{ marginBottom: '1.2rem', fontSize: '1.4rem', fontWeight: 700 }}>Stanje menze</h2>
 
-        {/* Tab switcher */}
+        {locations.length > 1 && (
+          <div style={{ display: 'flex', gap: '.4rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: '.8rem', color: '#94a3b8', marginRight: '.2rem' }}>Lokacija:</span>
+            <button
+              className={`btn ${locationFilter === null ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ padding: '.25rem .75rem', fontSize: '.82rem' }}
+              onClick={() => setLocationFilter(null)}>
+              Sve
+            </button>
+            {locations.map(loc => (
+              <button key={loc}
+                className={`btn ${locationFilter === loc ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '.25rem .75rem', fontSize: '.82rem' }}
+                onClick={() => {
+                  setLocationFilter(loc);
+                  const first = menze.find(m => m.location === loc);
+                  if (first) setSelected(first);
+                }}>
+                {loc}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: '.5rem', marginBottom: '1.5rem' }}>
           <button className={`btn ${tab === 'live' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setTab('live')}>
             Live stanje
@@ -146,9 +177,9 @@ export default function StudentView() {
 
         {tab === 'live' && (
           <>
-            {menze.length > 1 && (
+            {filteredMenze.length > 1 && (
               <div style={{ display: 'flex', gap: '.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-                {menze.map(m => (
+                {filteredMenze.map(m => (
                   <button key={m.id}
                     className={`btn ${selected?.id === m.id ? 'btn-primary' : 'btn-secondary'}`}
                     onClick={() => setSelected(m)}>
