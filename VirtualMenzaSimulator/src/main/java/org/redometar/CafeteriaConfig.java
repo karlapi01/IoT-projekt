@@ -14,34 +14,65 @@ public class CafeteriaConfig {
 
     public record Cafeteria(String id, String name, int[] zoneThresholds, String token) {
         // broj zona = broj konfiguriranih pragova
-        public int zoneCount() { return zoneThresholds.length; }
+        public int zoneCount() {
+            return zoneThresholds.length;
+        }
     }
 
     public static List<Cafeteria> getCafeterias() {
         List<Cafeteria> cafeterias = new ArrayList<>();
 
-        // zona1: senzor blizu blagajne - aktivira se pri 30% popunjenosti reda
-        // zona2: senzor cca. 3 m dalje - aktivira se pri 65% popunjenosti reda
+        // --- Studentski dom Cvjetno naselje ---
         cafeterias.add(new Cafeteria(
-                "virtualna_menza1",
-                "Studentski dom Stjepan Radic",
-                new int[]{30, 65},
-                System.getenv("MENZA1_TOKEN")
-        ));
+                "virtualna_menza_cvjetno_linija1",
+                "Cvjetno naselje - Linija 1",
+                new int[] { 30, 65 },
+                System.getenv("MENZA_CVJETNO_LINIJA1_TOKEN")));
 
         cafeterias.add(new Cafeteria(
-                "virtualna_menza2",
-                "SC menza",
-                new int[]{20, 50, 80},
-                System.getenv("MENZA2_TOKEN")
-        ));
+                "virtualna_menza_cvjetno_linija2",
+                "Cvjetno naselje - Linija 2",
+                new int[] { 30, 65 },
+                System.getenv("MENZA_CVJETNO_LINIJA2_TOKEN")));
+
+        // --- Sava ---
+        cafeterias.add(new Cafeteria(
+                "virtualna_menza_sava_restoran1",
+                "Sava - Restoran 1",
+                new int[] { 30, 65 },
+                System.getenv("MENZA_SAVA_RESTORAN1_TOKEN")));
 
         cafeterias.add(new Cafeteria(
-                "virtualna_menza3",
-                "Studentski dom Cvjetno naselje",
-                new int[]{30, 65},
-                System.getenv("MENZA3_TOKEN")
-        ));
+                "virtualna_menza_sava_restoran2",
+                "Sava - Restoran 2",
+                new int[] { 30, 65 },
+                System.getenv("MENZA_SAVA_RESTORAN2_TOKEN")));
+
+        // --- SC ---
+        cafeterias.add(new Cafeteria(
+                "virtualna_menza_sc_brza",
+                "SC - Brza menza",
+                new int[] { 20, 50, 80 },
+                System.getenv("MENZA_SC_BRZA_TOKEN")));
+
+        cafeterias.add(new Cafeteria(
+                "virtualna_menza_sc_linija1",
+                "SC - Linija 1",
+                new int[] { 20, 50, 80 },
+                System.getenv("MENZA_SC_LINIJA1_TOKEN")));
+
+        cafeterias.add(new Cafeteria(
+                "virtualna_menza_sc_linija2",
+                "SC - Linija 2",
+                new int[] { 20, 50, 80 },
+                System.getenv("MENZA_SC_LINIJA2_TOKEN")));
+
+        // --- FER ---
+        cafeterias.add(new Cafeteria(
+                "virtualna_menza_fer_spora",
+                "FER - Spora menza",
+                new int[] { 30, 65 },
+                System.getenv("MENZA_FER_SPORA_TOKEN")));
 
         return cafeterias;
     }
