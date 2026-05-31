@@ -35,6 +35,23 @@ router.post('/', auth('admin'), (req, res) => {
   }
 });
 
+// Admin: update customer menza access
+router.put('/:id/menze', auth('admin'), (req, res) => {
+  const { menza_ids } = req.body;
+  db.prepare('DELETE FROM customer_menza_access WHERE customer_id = ?').run(req.params.id);
+  if (menza_ids?.length) {
+    const stmt = db.prepare('INSERT OR IGNORE INTO customer_menza_access (customer_id, menza_id) VALUES (?, ?)');
+    menza_ids.forEach(mid => stmt.run(req.params.id, mid));
+  }
+  res.json({ ok: true });
+});
+
+// Admin: get customer menza access
+router.get('/:id/menze', auth('admin'), (req, res) => {
+  const menze = db.prepare('SELECT menza_id FROM customer_menza_access WHERE customer_id = ?').all(req.params.id);
+  res.json(menze.map(m => m.menza_id));
+});
+
 // Admin: delete user
 router.delete('/:id', auth('admin'), (req, res) => {
   db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);

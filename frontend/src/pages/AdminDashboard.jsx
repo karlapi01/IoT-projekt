@@ -10,6 +10,8 @@ export default function AdminDashboard() {
   const [form, setForm]     = useState({});
   const [error, setError]   = useState('');
   const [msg, setMsg]       = useState('');
+  const [accessUser, setAccessUser] = useState(null);
+  const [accessIds, setAccessIds]   = useState([]);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -37,6 +39,23 @@ export default function AdminDashboard() {
       await api.post('/menze', form);
       setMsg('Menza dodana.'); setModal(null); loadAll();
     } catch (err) { setError(err.message); }
+  }
+
+  async function openAccessModal(user) {
+    const ids = await api.get(`/users/${user.id}/menze`);
+    setAccessUser(user);
+    setAccessIds(ids);
+    setModal('access');
+  }
+
+  async function saveAccess() {
+    await api.put(`/users/${accessUser.id}/menze`, { menza_ids: accessIds });
+    setMsg(`Pristup ažuriran za ${accessUser.name}.`);
+    setModal(null);
+  }
+
+  function toggleAccess(menzaId) {
+    setAccessIds(prev => prev.includes(menzaId) ? prev.filter(x => x !== menzaId) : [...prev, menzaId]);
   }
 
   async function deleteUser(id) {
@@ -88,7 +107,12 @@ export default function AdminDashboard() {
                     <td>{u.email}</td>
                     <td><span className={`badge badge-${roleColor[u.role] ?? 'green'}`}>{u.role}</span></td>
                     <td>{new Date(u.created_at + 'Z').toLocaleDateString('hr')}</td>
-                    <td><button className="btn btn-danger" style={{ padding: '.25rem .7rem', fontSize: '.8rem' }} onClick={() => deleteUser(u.id)}>Obriši</button></td>
+                    <td style={{ display: 'flex', gap: '.4rem' }}>
+                      {u.role === 'customer' && (
+                        <button className="btn btn-secondary" style={{ padding: '.25rem .7rem', fontSize: '.8rem' }} onClick={() => openAccessModal(u)}>Menze</button>
+                      )}
+                      <button className="btn btn-danger" style={{ padding: '.25rem .7rem', fontSize: '.8rem' }} onClick={() => deleteUser(u.id)}>Obriši</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -175,6 +199,24 @@ export default function AdminDashboard() {
                 <button type="submit" className="btn btn-primary">Dodaj</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {modal === 'access' && accessUser && (
+        <div className="modal-overlay" onClick={() => setModal(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2>Pristup menzama — {accessUser.name}</h2>
+            <p style={{ fontSize: '.85rem', color: '#64748b', marginBottom: '1rem' }}>Odaberi koje menze customer može vidjeti i upravljati.</p>
+            {menze.map(m => (
+              <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '.5rem', fontWeight: 400, marginBottom: '.5rem' }}>
+                <input type="checkbox" checked={accessIds.includes(m.id)} onChange={() => toggleAccess(m.id)} />
+                <span><strong>{m.name}</strong>{m.location ? ` — ${m.location}` : ''}</span>
+              </label>
+            ))}
+            <div style={{ display: 'flex', gap: '.5rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+              <button className="btn btn-secondary" onClick={() => setModal(null)}>Odustani</button>
+              <button className="btn btn-primary" onClick={saveAccess}>Spremi</button>
+            </div>
           </div>
         </div>
       )}

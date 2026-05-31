@@ -13,6 +13,8 @@ export default function CustomerDashboard() {
   const [tab, setTab]                 = useState('live');
   const [stats, setStats]             = useState([]);
   const [period, setPeriod]           = useState('day');
+  const [editForm, setEditForm]       = useState({});
+  const [editMsg, setEditMsg]         = useState('');
 
   useEffect(() => {
     api.get('/menze').then(m => { setMenze(m); if (m.length > 0) setSelectedMenza(m[0]); });
@@ -24,10 +26,18 @@ export default function CustomerDashboard() {
       loadZones(selectedMenza.id);
       const iv = setInterval(() => loadZones(selectedMenza.id), 4000);
       return () => clearInterval(iv);
-    } else {
+    } else if (tab === 'stats') {
       loadStats(selectedMenza.id, period);
       const iv = setInterval(() => loadStats(selectedMenza.id, period), 60000);
       return () => clearInterval(iv);
+    } else if (tab === 'settings') {
+      setEditForm({
+        address: selectedMenza.address || '',
+        lat: selectedMenza.lat || '',
+        lng: selectedMenza.lng || '',
+        working_hours: selectedMenza.working_hours || '',
+      });
+      setEditMsg('');
     }
   }, [selectedMenza, tab, period]);
 
@@ -43,6 +53,20 @@ export default function CustomerDashboard() {
   async function loadStats(menzaId, p) {
     const data = await api.get(`/menze/${menzaId}/stats?period=${p}`);
     setStats(data);
+  }
+
+  async function saveSettings(e) {
+    e.preventDefault();
+    setEditMsg('');
+    const updated = await api.patch(`/menze/${selectedMenza.id}`, {
+      address: editForm.address || null,
+      lat: editForm.lat ? parseFloat(editForm.lat) : null,
+      lng: editForm.lng ? parseFloat(editForm.lng) : null,
+      working_hours: editForm.working_hours || null,
+    });
+    setMenze(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated } : m));
+    setSelectedMenza(prev => ({ ...prev, ...updated }));
+    setEditMsg('Promjene spremljene i sinkronizirane s ThingsBoardom.');
   }
 
   function formatBucket(bucket) {
@@ -76,12 +100,9 @@ export default function CustomerDashboard() {
         {selectedMenza && (
           <>
             <div style={{ display: 'flex', gap: '.5rem', marginBottom: '1.5rem' }}>
-              <button className={`btn ${tab === 'live' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setTab('live')}>
-                Live stanje
-              </button>
-              <button className={`btn ${tab === 'stats' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setTab('stats')}>
-                Statistika
-              </button>
+              <button className={`btn ${tab === 'live' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setTab('live')}>Live stanje</button>
+              <button className={`btn ${tab === 'stats' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setTab('stats')}>Statistika</button>
+              <button className={`btn ${tab === 'settings' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setTab('settings')}>Postavke</button>
             </div>
 
             {tab === 'live' && (
@@ -213,6 +234,36 @@ export default function CustomerDashboard() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {tab === 'settings' && (
+              <div className="card">
+                <h3 style={{ marginBottom: '1.5rem' }}>Postavke — {selectedMenza.name}</h3>
+                {editMsg && <p className="success-msg" style={{ marginBottom: '1rem' }}>{editMsg}</p>}
+                <form onSubmit={saveSettings}>
+                  <div className="form-group">
+                    <label>Adresa</label>
+                    <input value={editForm.address || ''} onChange={e => setEditForm({ ...editForm, address: e.target.value })} placeholder="npr. Unska 3, Zagreb" />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                      <label>Latitude</label>
+                      <input type="number" step="any" value={editForm.lat || ''} onChange={e => setEditForm({ ...editForm, lat: e.target.value })} placeholder="45.8003" />
+                    </div>
+                    <div className="form-group">
+                      <label>Longitude</label>
+                      <input type="number" step="any" value={editForm.lng || ''} onChange={e => setEditForm({ ...editForm, lng: e.target.value })} placeholder="15.9714" />
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label>Radno vrijeme</label>
+                    <input value={editForm.working_hours || ''} onChange={e => setEditForm({ ...editForm, working_hours: e.target.value })} placeholder="npr. 07:00-15:00" />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                    <button type="submit" className="btn btn-primary">Spremi i sinkroniziraj s ThingsBoardom</button>
+                  </div>
+                </form>
               </div>
             )}
           </>

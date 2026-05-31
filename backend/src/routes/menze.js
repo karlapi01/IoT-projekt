@@ -63,6 +63,51 @@ router.get('/:id/zones', auth('admin', 'customer', 'student'), (req, res) => {
   res.json(result);
 });
 
+// Customer/admin: update menza attributes (syncs back to ThingsBoard)
+router.patch('/:id', auth('admin', 'customer'), async (req, res) => {
+  const menza = db.prepare('SELECT * FROM menze WHERE id = ?').get(req.params.id);
+  if (!menza) return res.status(404).json({ error: 'Not found' });
+
+  if (req.user.role === 'customer') {
+    const access = db.prepare('SELECT 1 FROM customer_menza_access WHERE customer_id=? AND menza_id=?')
+      .get(req.user.id, menza.id);
+    if (!access) return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const { address, lat, lng, working_hours } = req.body;
+
+  db.prepare(`UPDATE menze SET address=COALESCE(?,address), lat=COALESCE(?,lat),
+              lng=COALESCE(?,lng), working_hours=COALESCE(?,working_hours) WHERE id=?`)
+    .run(address ?? null, lat ?? null, lng ?? null, working_hours ?? null, menza.id);
+
+  // Write back to ThingsBoard Server Attributes
+  if (menza.tb_asset_id) {
+    try {
+      const loginRes = await fetch(`${process.env.TB_URL || 'http://161.53.133.253:8080'}/api/auth/login`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: process.env.TB_EMAIL, password: process.env.TB_PASSWORD }),
+      });
+      const { token } = await loginRes.json();
+
+      const attrs = {};
+      if (address !== undefined) attrs.address = address;
+      if (lat !== undefined) attrs.lat = lat;
+      if (lng !== undefined) attrs.lng = lng;
+      if (working_hours !== undefined) attrs.workingHours = working_hours;
+
+      await fetch(
+        `${process.env.TB_URL || 'http://161.53.133.253:8080'}/api/plugins/telemetry/ASSET/${menza.tb_asset_id}/SERVER_SCOPE`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': `Bearer ${token}` },
+          body: JSON.stringify(attrs) }
+      );
+    } catch (err) {
+      console.warn('[TB] Failed to write attributes back:', err.message);
+    }
+  }
+
+  res.json(db.prepare('SELECT * FROM menze WHERE id = ?').get(menza.id));
+});
+
 // Occupancy stats — grouped by hour for last 24h or by day for last 7d
 router.get('/:id/stats', auth('admin', 'customer', 'student'), (req, res) => {
   const period = req.query.period === 'week' ? 'week' : 'day';

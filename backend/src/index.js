@@ -17,6 +17,8 @@ app.listen(PORT, () => {
   console.log(`[HTTP] Backend running on http://localhost:${PORT}`);
 });
 
-// Subscribe to live telemetry from ThingsBoard
+// Sync menze from ThingsBoard Assets, then start telemetry subscriber
+const { syncMenzeFromThingsBoard } = require('./thingsboard/sync');
 const { startThingsBoardSubscriber } = require('./thingsboard/subscriber');
-startThingsBoardSubscriber();
+
+syncMenzeFromThingsBoard().then(() => startThingsBoardSubscriber());
