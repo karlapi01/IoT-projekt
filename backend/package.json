@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "seed": "node src/db/seed.js"
+    "seed": "node src/db/seed.js",
+    "mock": "node src/db/mockPeakData.js"
   },
   "dependencies": {
     "aedes": "^0.51.3",

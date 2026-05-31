@@ -182,4 +182,34 @@ router.get('/:id/wait', auth('admin', 'customer', 'student'), (req, res) => {
   });
 });
 
+// Peak hours — average occupancy % per hour of day (UTC+2), based on all recorded data
+router.get('/:id/peakhours', auth('admin', 'customer', 'student'), (req, res) => {
+  const zones = db.prepare('SELECT id FROM zones WHERE menza_id = ?').all(req.params.id);
+  if (zones.length === 0) return res.json([]);
+
+  const zoneIds = zones.map(z => z.id);
+  const placeholders = zoneIds.map(() => '?').join(',');
+
+  const rows = db.prepare(`
+    SELECT
+      CAST(strftime('%H', datetime(recorded_at, '+2 hours')) AS INTEGER) AS hour,
+      AVG(occupied) AS avg_occupied,
+      COUNT(*) AS sample_count
+    FROM zone_states
+    WHERE zone_id IN (${placeholders})
+    GROUP BY hour
+    ORDER BY hour
+  `).all(...zoneIds);
+
+  // Return all 24 hours, filling gaps with null so the chart renders a complete axis
+  const byHour = Object.fromEntries(rows.map(r => [r.hour, r]));
+  const result = Array.from({ length: 24 }, (_, h) => ({
+    hour: h,
+    occupancy_pct: byHour[h] ? Math.round(byHour[h].avg_occupied * 100) : null,
+    sample_count: byHour[h]?.sample_count ?? 0,
+  }));
+
+  res.json(result);
+});
+
 module.exports = router;
