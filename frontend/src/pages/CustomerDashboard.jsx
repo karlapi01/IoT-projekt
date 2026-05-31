@@ -122,9 +122,16 @@ export default function CustomerDashboard() {
                     <>
                       <div style={{ textAlign: 'center' }}>
                         <p style={{ fontSize: '.85rem', color: '#64748b', marginBottom: '.2rem' }}>Procijenjeno čekanje</p>
-                        <p style={{ fontWeight: 800, fontSize: '2rem', color: wait.occupied_zones > 0 ? '#f59e0b' : '#22c55e' }}>
-                          ~{wait.estimated_wait_minutes} min
-                        </p>
+                        {wait.stale ? (
+                          <p style={{ fontWeight: 700, fontSize: '1.1rem', color: '#94a3b8' }}>—</p>
+                        ) : (
+                          <p style={{ fontWeight: 800, fontSize: '2rem', color: wait.occupied_zones > 0 ? '#f59e0b' : '#22c55e' }}>
+                            ~{wait.estimated_wait_minutes} min
+                          </p>
+                        )}
+                        {wait.stale && (
+                          <p style={{ fontSize: '.72rem', color: '#ef4444', marginTop: '.2rem' }}>Nema svježih podataka</p>
+                        )}
                       </div>
                       <div style={{ textAlign: 'center' }}>
                         <p style={{ fontSize: '.85rem', color: '#64748b', marginBottom: '.2rem' }}>Zauzetost</p>
