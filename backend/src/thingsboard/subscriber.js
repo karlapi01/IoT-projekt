@@ -17,29 +17,49 @@ async function login() {
 }
 
 
+function tbVal(payload, key) {
+  const v = payload[key];
+  if (!v) return null;
+  return Array.isArray(v) ? v[0]?.[1] : v;
+}
+
 function handleTelemetry(menzaId, menzaName, payload) {
   const zones = db.prepare('SELECT id, name FROM zones WHERE menza_id = ? ORDER BY id').all(menzaId);
-  const insert = db.prepare('INSERT INTO zone_states (zone_id, occupied) VALUES (?, ?)');
+  const insertState = db.prepare('INSERT INTO zone_states (zone_id, occupied) VALUES (?, ?)');
 
-  let updated = 0;
+  let zonesUpdated = 0;
   for (const zone of zones) {
     const key = 'zone' + zone.name.replace(/\D/g, '');
     if (key in payload) {
-      // ThingsBoard format: [[timestamp, "true"]] — value is at index [0][1]
-      const raw = Array.isArray(payload[key]) ? payload[key][0]?.[1] : payload[key];
+      const raw = tbVal(payload, key);
       const occupied = raw === true || raw === 'true' || raw === 1 ? 1 : 0;
-      insert.run(zone.id, occupied);
-      updated++;
+      insertState.run(zone.id, occupied);
+      zonesUpdated++;
     }
   }
 
-  if (updated > 0) {
-    const occupied = zones.filter((z) => {
-      const k = 'zone' + z.name.replace(/\D/g, '');
-      const raw = Array.isArray(payload[k]) ? payload[k][0]?.[1] : payload[k];
-      return raw === true || raw === 'true' || raw === 1;
-    }).length;
-    console.log(`[TB] ${menzaName}: ${occupied}/${zones.length} zones occupied`);
+  // Update menza-level stats from ThingsBoard Rule Chain output
+  const waitRaw = tbVal(payload, 'estimatedWaitMinutes');
+  const occupiedRaw = tbVal(payload, 'occupiedZones');
+  const totalRaw = tbVal(payload, 'totalZones');
+
+  if (waitRaw !== null || occupiedRaw !== null) {
+    db.prepare(`
+      UPDATE menze SET
+        estimated_wait_minutes = COALESCE(?, estimated_wait_minutes),
+        occupied_zones = COALESCE(?, occupied_zones),
+        total_zones = COALESCE(?, total_zones)
+      WHERE id = ?
+    `).run(
+      waitRaw !== null ? parseInt(waitRaw) : null,
+      occupiedRaw !== null ? parseInt(occupiedRaw) : null,
+      totalRaw !== null ? parseInt(totalRaw) : null,
+      menzaId
+    );
+  }
+
+  if (waitRaw !== null && occupiedRaw !== null) {
+    console.log(`[TB] ${menzaName}: ${occupiedRaw}/${totalRaw} zones occupied, ~${waitRaw} min wait`);
   }
 }
 

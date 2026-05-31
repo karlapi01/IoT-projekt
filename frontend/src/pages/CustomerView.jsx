@@ -83,7 +83,7 @@ export default function CustomerView() {
                   </span>
                   {z.last_update && (
                     <p style={{ fontSize: '.75rem', color: '#94a3b8', marginTop: '.4rem' }}>
-                      {new Date(z.last_update).toLocaleTimeString('hr')}
+                      {new Date(z.last_update + 'Z').toLocaleTimeString('hr')}
                     </p>
                   )}
                 </div>

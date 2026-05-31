@@ -26,6 +26,9 @@ db.exec(`
     tenant_id INTEGER NOT NULL REFERENCES users(id),
     mqtt_token TEXT UNIQUE,
     tb_device_id TEXT UNIQUE,
+    estimated_wait_minutes INTEGER DEFAULT 0,
+    occupied_zones INTEGER DEFAULT 0,
+    total_zones INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 

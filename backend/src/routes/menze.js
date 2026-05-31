@@ -76,38 +76,18 @@ router.post('/:id/sensor', auth('admin', 'tenant'), (req, res) => {
   res.json({ ok: true });
 });
 
-// Estimated wait time — matches ThingsBoard Rule Chain logic from progress report:
-// both free → 0 min | only zone1 occupied → 5 min | both occupied → 10 min
-// For menze with more zones, each extra occupied zone adds 5 min
+// Wait time — sourced directly from ThingsBoard Rule Chain via telemetry
 router.get('/:id/wait', auth('admin', 'tenant', 'customer'), (req, res) => {
-  const zones = db.prepare(
-    'SELECT * FROM zones WHERE menza_id = ? ORDER BY id'
-  ).all(req.params.id);
+  const menza = db.prepare(
+    'SELECT estimated_wait_minutes, occupied_zones, total_zones FROM menze WHERE id = ?'
+  ).get(req.params.id);
 
-  const states = zones.map((z) => {
-    const latest = db.prepare(
-      'SELECT occupied FROM zone_states WHERE zone_id = ? ORDER BY recorded_at DESC LIMIT 1'
-    ).get(z.id);
-    return { ...z, occupied: latest?.occupied ?? 0 };
-  });
-
-  const occupiedCount = states.filter(z => z.occupied).length;
-  const zone1Occupied = states[0]?.occupied ?? 0;
-
-  // Mirrors ThingsBoard Rule Chain: 0 / 5 / 10 min
-  let estimated_wait_minutes;
-  if (occupiedCount === 0) {
-    estimated_wait_minutes = 0;
-  } else if (zone1Occupied && occupiedCount === 1) {
-    estimated_wait_minutes = 5;
-  } else {
-    estimated_wait_minutes = occupiedCount * 5;
-  }
+  if (!menza) return res.status(404).json({ error: 'Not found' });
 
   res.json({
-    occupied_zones: occupiedCount,
-    total_zones: zones.length,
-    estimated_wait_minutes,
+    occupied_zones: menza.occupied_zones ?? 0,
+    total_zones: menza.total_zones ?? 0,
+    estimated_wait_minutes: menza.estimated_wait_minutes ?? 0,
   });
 });
 
