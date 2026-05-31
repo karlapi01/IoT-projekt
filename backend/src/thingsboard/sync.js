@@ -1,31 +1,10 @@
 const db = require('../db/schema');
-
-const TB_URL = process.env.TB_URL || 'http://161.53.133.253:8080';
-const TB_EMAIL = process.env.TB_EMAIL || 'dona.weiner@fer.hr';
-const TB_PASSWORD = process.env.TB_PASSWORD || 'Redometar5';
-
-async function tbGet(path, token) {
-  const res = await fetch(`${TB_URL}${path}`, {
-    headers: { 'X-Authorization': `Bearer ${token}` },
-  });
-  if (!res.ok) throw new Error(`TB API ${path} → ${res.status}`);
-  return res.json();
-}
-
-async function login() {
-  const res = await fetch(`${TB_URL}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: TB_EMAIL, password: TB_PASSWORD }),
-  });
-  if (!res.ok) throw new Error(`Login failed: ${res.status}`);
-  return (await res.json()).token;
-}
+const { tbLogin, tbGet } = require('./client');
 
 async function syncMenzeFromThingsBoard() {
   let token;
   try {
-    token = await login();
+    token = await tbLogin();
   } catch (err) {
     console.error('[TB Sync] Login failed:', err.message);
     return;
@@ -49,6 +28,16 @@ async function syncMenzeFromThingsBoard() {
     return;
   }
 
+  // Remove stale rows FIRST so they can't cause UNIQUE conflicts during updates
+  const tbAssetIds = menzaAssets.map(a => a.id.id);
+  const localTbMenze = db.prepare('SELECT id, name, tb_asset_id FROM menze WHERE tb_asset_id IS NOT NULL').all();
+  for (const m of localTbMenze) {
+    if (!tbAssetIds.includes(m.tb_asset_id)) {
+      db.prepare('DELETE FROM menze WHERE id = ?').run(m.id);
+      console.log(`[TB Sync] Removed stale menza: ${m.name} (asset no longer in ThingsBoard)`);
+    }
+  }
+
   for (const asset of menzaAssets) {
     const assetId = asset.id.id;
     const name = asset.name;
@@ -61,8 +50,14 @@ async function syncMenzeFromThingsBoard() {
         token
       );
       const deviceRel = rels.find(r => r.type === 'Contains' && r.to.entityType === 'DEVICE');
-      if (deviceRel) deviceId = deviceRel.to.id;
-    } catch (_) {}
+      if (deviceRel) {
+        deviceId = deviceRel.to.id;
+      } else {
+        console.warn(`[TB Sync] ${name}: no Contains→DEVICE relation found (relations: ${JSON.stringify(rels.map(r => `${r.type} → ${r.to.entityType}`))})`);
+      }
+    } catch (err) {
+      console.warn(`[TB Sync] ${name}: failed to fetch relations — ${err.message}`);
+    }
 
     // Get parent lokacija name (TO asset Contains this asset)
     let location = null;
@@ -95,9 +90,17 @@ async function syncMenzeFromThingsBoard() {
     const existing = db.prepare('SELECT * FROM menze WHERE tb_asset_id = ?').get(assetId);
 
     if (existing) {
-      db.prepare(`UPDATE menze SET name=?, location=?, tb_device_id=?, address=?, lat=?, lng=?, working_hours=?
+      // Check if another menza already claims this device — means TB relations are misconfigured
+      if (deviceId) {
+        const conflict = db.prepare('SELECT name FROM menze WHERE tb_device_id=? AND tb_asset_id!=?').get(deviceId, assetId);
+        if (conflict) {
+          console.warn(`[TB Sync] WARNING: device ${deviceId} is linked to both "${name}" and "${conflict.name}" in ThingsBoard — fix the Contains relation in TB for one of them`);
+        }
+      }
+      db.prepare(`UPDATE OR IGNORE menze SET name=?, location=?, address=?, lat=?, lng=?, working_hours=?,
+                  tb_device_id=?
                   WHERE tb_asset_id=?`)
-        .run(name, location, deviceId, address, lat, lng, workingHours, assetId);
+        .run(name, location, address, lat, lng, workingHours, deviceId, assetId);
       console.log(`[TB Sync] Updated: ${name} (location: ${location ?? '—'}, address: ${address ?? '—'})`);
     } else {
       const mqtt_token = `token-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

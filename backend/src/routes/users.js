@@ -54,6 +54,9 @@ router.get('/:id/menze', auth('admin'), (req, res) => {
 
 // Admin: delete user
 router.delete('/:id', auth('admin'), (req, res) => {
+  if (parseInt(req.params.id) === req.user.id) {
+    return res.status(400).json({ error: 'Cannot delete your own account' });
+  }
   db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });

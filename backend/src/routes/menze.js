@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const db = require('../db/schema');
 const auth = require('../middleware/auth');
+const { tbLogin, tbPost } = require('../thingsboard/client');
 
 // Get menze accessible to the current user
 router.get('/', auth('admin', 'customer', 'student'), (req, res) => {
@@ -83,11 +84,7 @@ router.patch('/:id', auth('admin', 'customer'), async (req, res) => {
   // Write back to ThingsBoard Server Attributes
   if (menza.tb_asset_id) {
     try {
-      const loginRes = await fetch(`${process.env.TB_URL || 'http://161.53.133.253:8080'}/api/auth/login`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: process.env.TB_EMAIL, password: process.env.TB_PASSWORD }),
-      });
-      const { token } = await loginRes.json();
+      const token = await tbLogin();
 
       const attrs = {};
       if (address !== undefined) attrs.address = address;
@@ -95,11 +92,7 @@ router.patch('/:id', auth('admin', 'customer'), async (req, res) => {
       if (lng !== undefined) attrs.lng = lng;
       if (working_hours !== undefined) attrs.workingHours = working_hours;
 
-      await fetch(
-        `${process.env.TB_URL || 'http://161.53.133.253:8080'}/api/plugins/telemetry/ASSET/${menza.tb_asset_id}/SERVER_SCOPE`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Authorization': `Bearer ${token}` },
-          body: JSON.stringify(attrs) }
-      );
+      await tbPost(`/api/plugins/telemetry/ASSET/${menza.tb_asset_id}/SERVER_SCOPE`, token, attrs);
     } catch (err) {
       console.warn('[TB] Failed to write attributes back:', err.message);
     }
@@ -155,6 +148,12 @@ router.get('/:id/stats', auth('admin', 'customer', 'student'), (req, res) => {
 // Admin/customer: manual sensor push (for testing)
 router.post('/:id/sensor', auth('admin', 'customer'), (req, res) => {
   const { zone_id, occupied } = req.body;
+  if (zone_id == null) return res.status(400).json({ error: 'zone_id required' });
+
+  // Ensure the zone actually belongs to the menza in the URL
+  const zone = db.prepare('SELECT id FROM zones WHERE id = ? AND menza_id = ?').get(zone_id, req.params.id);
+  if (!zone) return res.status(404).json({ error: 'Zone not found for this menza' });
+
   db.prepare('INSERT INTO zone_states (zone_id, occupied) VALUES (?, ?)').run(zone_id, occupied ? 1 : 0);
   res.json({ ok: true });
 });
@@ -162,15 +161,24 @@ router.post('/:id/sensor', auth('admin', 'customer'), (req, res) => {
 // Wait time — sourced directly from ThingsBoard Rule Chain via telemetry
 router.get('/:id/wait', auth('admin', 'customer', 'student'), (req, res) => {
   const menza = db.prepare(
-    'SELECT estimated_wait_minutes, occupied_zones, total_zones FROM menze WHERE id = ?'
+    'SELECT estimated_wait_minutes, occupied_zones, telemetry_updated_at FROM menze WHERE id = ?'
   ).get(req.params.id);
 
   if (!menza) return res.status(404).json({ error: 'Not found' });
 
+  // Count zones from the actual zones table — always accurate regardless of TB telemetry
+  const { total } = db.prepare('SELECT COUNT(*) as total FROM zones WHERE menza_id = ?').get(req.params.id);
+
+  // Consider data stale if no telemetry received in the last 5 minutes
+  const updatedAt = menza.telemetry_updated_at ?? null;
+  const stale = !updatedAt || (Date.now() - new Date(updatedAt + 'Z').getTime() > 5 * 60 * 1000);
+
   res.json({
     occupied_zones: menza.occupied_zones ?? 0,
-    total_zones: menza.total_zones ?? 0,
-    estimated_wait_minutes: menza.estimated_wait_minutes ?? 0,
+    total_zones: total,
+    estimated_wait_minutes: stale ? null : (menza.estimated_wait_minutes ?? 0),
+    telemetry_updated_at: updatedAt,
+    stale,
   });
 });
 

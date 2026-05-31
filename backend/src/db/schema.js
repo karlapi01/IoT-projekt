@@ -59,4 +59,19 @@ db.exec(`
   );
 `);
 
+const migrations = [
+  `ALTER TABLE menze ADD COLUMN mqtt_token TEXT UNIQUE`,
+  `ALTER TABLE menze ADD COLUMN tb_device_id TEXT UNIQUE`,
+  `ALTER TABLE menze ADD COLUMN tb_asset_id TEXT UNIQUE`,
+  `ALTER TABLE menze ADD COLUMN address TEXT`,
+  `ALTER TABLE menze ADD COLUMN lat REAL`,
+  `ALTER TABLE menze ADD COLUMN lng REAL`,
+  `ALTER TABLE menze ADD COLUMN working_hours TEXT`,
+  `ALTER TABLE menze ADD COLUMN estimated_wait_minutes INTEGER DEFAULT 0`,
+  `ALTER TABLE menze ADD COLUMN occupied_zones INTEGER DEFAULT 0`,
+  `ALTER TABLE menze ADD COLUMN total_zones INTEGER DEFAULT 0`,
+  `ALTER TABLE menze ADD COLUMN telemetry_updated_at DATETIME`,
+];
+for (const sql of migrations) { try { db.exec(sql); } catch (_) {} }
+
 module.exports = db;

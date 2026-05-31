@@ -1,20 +1,6 @@
 const WebSocket = require('ws');
 const db = require('../db/schema');
-
-const TB_URL = process.env.TB_URL || 'http://161.53.133.253:8080';
-const TB_EMAIL = process.env.TB_EMAIL || 'dona.weiner@fer.hr';
-const TB_PASSWORD = process.env.TB_PASSWORD || 'Redometar5';
-
-async function login() {
-  const res = await fetch(`${TB_URL}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: TB_EMAIL, password: TB_PASSWORD }),
-  });
-  if (!res.ok) throw new Error(`ThingsBoard login failed: ${res.status}`);
-  const data = await res.json();
-  return data.token;
-}
+const { tbLogin, TB_URL } = require('./client');
 
 
 function tbVal(payload, key) {
@@ -56,6 +42,9 @@ function handleTelemetry(menzaId, menzaName, payload) {
       totalRaw !== null ? parseInt(totalRaw) : null,
       menzaId
     );
+  } else if (zonesUpdated > 0) {
+    // Zone states were updated even if TB didn't send wait/occupancy aggregates — still stamp the time
+    db.prepare(`UPDATE menze SET telemetry_updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(menzaId);
   }
 
   if (waitRaw !== null && occupiedRaw !== null) {
@@ -66,7 +55,7 @@ function handleTelemetry(menzaId, menzaName, payload) {
 async function startThingsBoardSubscriber() {
   let token;
   try {
-    token = await login();
+    token = await tbLogin();
     console.log('[TB] Logged in successfully');
   } catch (err) {
     console.error('[TB] Login error:', err.message);
