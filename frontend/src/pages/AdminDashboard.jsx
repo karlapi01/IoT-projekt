@@ -15,6 +15,12 @@ export default function AdminDashboard() {
 
   useEffect(() => { loadAll(); }, []);
 
+  useEffect(() => {
+    if (!msg) return;
+    const t = setTimeout(() => setMsg(''), 3000);
+    return () => clearTimeout(t);
+  }, [msg]);
+
   async function loadAll() {
     const [u, m] = await Promise.all([api.get('/users'), api.get('/menze')]);
     setUsers(u);

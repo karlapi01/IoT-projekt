@@ -58,10 +58,25 @@ function startMqttBroker() {
   return broker;
 }
 
-function handleTelemetry(menzaId, menzaName, payload) {
-  // payload keys are "zone1", "zone2", ... — match by position to DB zones
-  const zones = db.prepare('SELECT id, name FROM zones WHERE menza_id = ? ORDER BY id').all(menzaId);
+function ensureZones(menzaId, menzaName, payload) {
+  const existing = new Set(
+    db.prepare('SELECT name FROM zones WHERE menza_id = ?').all(menzaId).map(z => z.name)
+  );
+  const zoneKeys = Object.keys(payload).filter(k => /^zone\d+$/.test(k));
+  for (const key of zoneKeys) {
+    const zoneName = 'Zona ' + key.replace('zone', '');
+    if (!existing.has(zoneName)) {
+      db.prepare('INSERT OR IGNORE INTO zones (menza_id, name, is_virtual) VALUES (?, ?, 0)')
+        .run(menzaId, zoneName);
+      console.log(`[MQTT] ${menzaName}: auto-created ${zoneName}`);
+    }
+  }
+}
 
+function handleTelemetry(menzaId, menzaName, payload) {
+  ensureZones(menzaId, menzaName, payload);
+
+  const zones = db.prepare('SELECT id, name FROM zones WHERE menza_id = ? ORDER BY id').all(menzaId);
   const insert = db.prepare('INSERT INTO zone_states (zone_id, occupied) VALUES (?, ?)');
 
   let updated = 0;

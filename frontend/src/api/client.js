@@ -15,6 +15,13 @@ async function request(method, path, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
 
+  if (res.status === 401) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+    return;
+  }
+
   if (res.status === 204) return null;
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Request failed');

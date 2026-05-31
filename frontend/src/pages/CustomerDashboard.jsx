@@ -135,7 +135,7 @@ export default function CustomerDashboard() {
                       </div>
                       <div style={{ textAlign: 'center' }}>
                         <p style={{ fontSize: '.85rem', color: '#64748b', marginBottom: '.2rem' }}>Zauzetost</p>
-                        <p style={{ fontWeight: 800, fontSize: '2rem' }}>
+                        <p style={{ fontWeight: 800, fontSize: '2rem', color: wait.stale ? '#94a3b8' : 'inherit' }}>
                           {wait.occupied_zones}/{wait.total_zones}
                         </p>
                       </div>

@@ -9,7 +9,24 @@ function tbVal(payload, key) {
   return Array.isArray(v) ? v[0]?.[1] : v;
 }
 
+function ensureZones(menzaId, menzaName, payload) {
+  const existing = new Set(
+    db.prepare('SELECT name FROM zones WHERE menza_id = ?').all(menzaId).map(z => z.name)
+  );
+  const zoneKeys = Object.keys(payload).filter(k => /^zone\d+$/.test(k));
+  for (const key of zoneKeys) {
+    const zoneName = 'Zona ' + key.replace('zone', '');
+    if (!existing.has(zoneName)) {
+      db.prepare('INSERT OR IGNORE INTO zones (menza_id, name, is_virtual) VALUES (?, ?, 0)')
+        .run(menzaId, zoneName);
+      console.log(`[TB] ${menzaName}: auto-created ${zoneName}`);
+    }
+  }
+}
+
 function handleTelemetry(menzaId, menzaName, payload) {
+  ensureZones(menzaId, menzaName, payload);
+
   const zones = db.prepare('SELECT id, name FROM zones WHERE menza_id = ? ORDER BY id').all(menzaId);
   const insertState = db.prepare('INSERT INTO zone_states (zone_id, occupied) VALUES (?, ?)');
 
@@ -24,7 +41,6 @@ function handleTelemetry(menzaId, menzaName, payload) {
     }
   }
 
-  // Update menza-level stats from ThingsBoard Rule Chain output
   const waitRaw = tbVal(payload, 'estimatedWaitMinutes');
   const occupiedRaw = tbVal(payload, 'occupiedZones');
   const totalRaw = tbVal(payload, 'totalZones');
@@ -115,7 +131,6 @@ async function startThingsBoardSubscriber() {
     setTimeout(() => startThingsBoardSubscriber(), 10000);
   });
 
-  // Returns a stop handle so the caller can close this WS before restarting
   return {
     stop: () => {
       stopped = true;

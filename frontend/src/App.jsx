@@ -28,13 +28,13 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<RoleRedirect />} />
-          <Route path="/admin/*" element={
+          <Route path="/admin" element={
             <RequireAuth roles={['admin']}><AdminDashboard /></RequireAuth>
           } />
-          <Route path="/customer/*" element={
+          <Route path="/customer" element={
             <RequireAuth roles={['customer']}><CustomerDashboard /></RequireAuth>
           } />
-          <Route path="/student/*" element={
+          <Route path="/student" element={
             <RequireAuth roles={['student']}><StudentView /></RequireAuth>
           } />
         </Routes>

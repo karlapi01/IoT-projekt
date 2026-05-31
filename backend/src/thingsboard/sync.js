@@ -109,10 +109,7 @@ async function syncMenzeFromThingsBoard() {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(name, location, adminId, mqtt_token, deviceId, assetId, address, lat, lng, workingHours);
 
-      const menzaId = result.lastInsertRowid;
-      db.prepare('INSERT OR IGNORE INTO zones (menza_id, name, is_virtual) VALUES (?, ?, ?)').run(menzaId, 'Zona 1', 0);
-      db.prepare('INSERT OR IGNORE INTO zones (menza_id, name, is_virtual) VALUES (?, ?, ?)').run(menzaId, 'Zona 2', 0);
-      console.log(`[TB Sync] Inserted: ${name} (location: ${location ?? '—'}, address: ${address ?? '—'})`);
+      console.log(`[TB Sync] Inserted: ${name} (location: ${location ?? '—'}, address: ${address ?? '—'}) — zones will be created on first telemetry`);
     }
   }
 
