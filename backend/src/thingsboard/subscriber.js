@@ -59,10 +59,9 @@ async function startThingsBoardSubscriber() {
     console.log('[TB] Logged in successfully');
   } catch (err) {
     console.error('[TB] Login error:', err.message);
-    return;
+    return { stop: () => {} };
   }
 
-  // Build subscriptions from menze that have a tb_device_id set
   const menze = db.prepare('SELECT * FROM menze WHERE tb_device_id IS NOT NULL').all();
   const subscriptions = [];
 
@@ -79,38 +78,30 @@ async function startThingsBoardSubscriber() {
 
   if (subscriptions.length === 0) {
     console.error('[TB] No menze could be matched to ThingsBoard devices. Check device names match.');
-    return;
+    return { stop: () => {} };
   }
 
   const wsUrl = `${TB_URL.replace('http', 'ws')}/api/ws/plugins/telemetry?token=${token}`;
   const ws = new WebSocket(wsUrl);
+  let stopped = false;
 
   ws.on('open', () => {
     console.log('[TB] WebSocket connected');
-
     const cmds = subscriptions.map((s) => ({
       entityType: 'DEVICE',
       entityId: s.deviceId,
       scope: 'LATEST_TELEMETRY',
       cmdId: s.cmdId,
     }));
-
     ws.send(JSON.stringify({ tsSubCmds: cmds, historyCmds: [], attrSubCmds: [] }));
     console.log(`[TB] Subscribed to telemetry for: ${subscriptions.map((s) => s.menzaName).join(', ')}`);
   });
 
   ws.on('message', (data) => {
     let msg;
-    try {
-      msg = JSON.parse(data.toString());
-    } catch {
-      return;
-    }
-
-    // ThingsBoard sends { subscriptionId, data: { zone1: [{ts, value}], ... } }
+    try { msg = JSON.parse(data.toString()); } catch { return; }
     const sub = subscriptions.find((s) => s.cmdId === msg.subscriptionId);
     if (!sub || !msg.data) return;
-
     handleTelemetry(sub.menzaId, sub.menzaName, msg.data);
   });
 
@@ -119,9 +110,18 @@ async function startThingsBoardSubscriber() {
   });
 
   ws.on('close', () => {
+    if (stopped) return; // deliberate stop — don't reconnect
     console.warn('[TB] WebSocket closed — reconnecting in 10s...');
     setTimeout(() => startThingsBoardSubscriber(), 10000);
   });
+
+  // Returns a stop handle so the caller can close this WS before restarting
+  return {
+    stop: () => {
+      stopped = true;
+      ws.terminate();
+    },
+  };
 }
 
 module.exports = { startThingsBoardSubscriber };
