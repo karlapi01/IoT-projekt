@@ -2,6 +2,18 @@ const router = require('express').Router();
 const db = require('../db/schema');
 const auth = require('../middleware/auth');
 const { tbLogin, tbPost } = require('../thingsboard/client');
+const { syncMenzeFromThingsBoard } = require('../thingsboard/sync');
+
+// Admin: manual sync from ThingsBoard
+router.post('/sync', auth('admin'), async (req, res) => {
+  try {
+    await syncMenzeFromThingsBoard();
+    const menze = db.prepare('SELECT * FROM menze').all();
+    res.json({ ok: true, count: menze.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Get menze accessible to the current user
 router.get('/', auth('admin', 'customer', 'student'), (req, res) => {

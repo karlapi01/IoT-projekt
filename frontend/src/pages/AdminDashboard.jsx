@@ -12,12 +12,13 @@ export default function AdminDashboard() {
   const [msg, setMsg]       = useState('');
   const [accessUser, setAccessUser] = useState(null);
   const [accessIds, setAccessIds]   = useState([]);
+  const [syncing, setSyncing]       = useState(false);
 
   useEffect(() => { loadAll(); }, []);
 
   useEffect(() => {
     if (!msg) return;
-    const t = setTimeout(() => setMsg(''), 3000);
+    const t = setTimeout(() => setMsg(''), 4000);
     return () => clearTimeout(t);
   }, [msg]);
 
@@ -27,7 +28,18 @@ export default function AdminDashboard() {
     setMenze(m);
   }
 
-  function openModal(type) { setForm({}); setError(''); setModal(type); }
+  async function syncFromThingsBoard() {
+    setSyncing(true);
+    try {
+      const res = await api.post('/menze/sync', {});
+      setMsg(`Sinkronizacija završena — ${res.count} menza u bazi.`);
+      loadAll();
+    } catch (err) {
+      setMsg(`Greška pri sinkronizaciji: ${err.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   async function createUser(e) {
     e.preventDefault();
@@ -35,15 +47,6 @@ export default function AdminDashboard() {
     try {
       await api.post('/users', { ...form, menza_ids: form.menza_ids || [] });
       setMsg('Korisnik dodan.'); setModal(null); loadAll();
-    } catch (err) { setError(err.message); }
-  }
-
-  async function createMenza(e) {
-    e.preventDefault();
-    setError('');
-    try {
-      await api.post('/menze', form);
-      setMsg('Menza dodana.'); setModal(null); loadAll();
     } catch (err) { setError(err.message); }
   }
 
@@ -64,6 +67,11 @@ export default function AdminDashboard() {
     setAccessIds(prev => prev.includes(menzaId) ? prev.filter(x => x !== menzaId) : [...prev, menzaId]);
   }
 
+  function toggleMenzaAccess(menzaId) {
+    const ids = form.menza_ids || [];
+    setForm({ ...form, menza_ids: ids.includes(menzaId) ? ids.filter(x => x !== menzaId) : [...ids, menzaId] });
+  }
+
   async function deleteUser(id) {
     if (!confirm('Obrisati korisnika?')) return;
     await api.delete(`/users/${id}`);
@@ -71,14 +79,9 @@ export default function AdminDashboard() {
   }
 
   async function deleteMenza(id) {
-    if (!confirm('Obrisati menzu?')) return;
+    if (!confirm('Obrisati menzu iz aplikacije? (ne briše je iz ThingsBoarda)')) return;
     await api.delete(`/menze/${id}`);
     loadAll();
-  }
-
-  function toggleMenzaAccess(menzaId) {
-    const ids = form.menza_ids || [];
-    setForm({ ...form, menza_ids: ids.includes(menzaId) ? ids.filter(x => x !== menzaId) : [...ids, menzaId] });
   }
 
   const roleColor = { admin: 'red', customer: 'blue', student: 'green' };
@@ -102,7 +105,7 @@ export default function AdminDashboard() {
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3>Svi korisnici ({users.length})</h3>
-              <button className="btn btn-primary" onClick={() => openModal('user')}>+ Novi korisnik</button>
+              <button className="btn btn-primary" onClick={() => { setForm({}); setError(''); setModal('user'); }}>+ Novi korisnik</button>
             </div>
             <table>
               <thead><tr><th>Ime</th><th>Email</th><th>Uloga</th><th>Kreiran</th><th></th></tr></thead>
@@ -130,18 +133,28 @@ export default function AdminDashboard() {
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3>Sve menze ({menze.length})</h3>
-              <button className="btn btn-primary" onClick={() => openModal('menza')}>+ Nova menza</button>
+              <button className="btn btn-primary" onClick={syncFromThingsBoard} disabled={syncing}>
+                {syncing ? 'Sinkronizacija...' : '⟳ Sinkroniziraj s ThingsBoardom'}
+              </button>
             </div>
+            <p style={{ fontSize: '.82rem', color: '#94a3b8', marginBottom: '1rem' }}>
+              Menze se dodaju i konfiguriraju u ThingsBoardu. Klikni sinkroniziraj da preuzeš promjene.
+            </p>
             <table>
-              <thead><tr><th>Naziv</th><th>Lokacija</th><th>MQTT token</th><th>Kreirana</th><th></th></tr></thead>
+              <thead><tr><th>Naziv</th><th>Lokacija</th><th>Adresa</th><th>Radno vrijeme</th><th>TB device</th><th></th></tr></thead>
               <tbody>
                 {menze.map(m => (
                   <tr key={m.id}>
                     <td>{m.name}</td>
                     <td>{m.location || '—'}</td>
-                    <td><code style={{ fontSize: '.78rem', color: '#475569' }}>{m.mqtt_token || '—'}</code></td>
-                    <td>{new Date(m.created_at + 'Z').toLocaleDateString('hr')}</td>
-                    <td><button className="btn btn-danger" style={{ padding: '.25rem .7rem', fontSize: '.8rem' }} onClick={() => deleteMenza(m.id)}>Obriši</button></td>
+                    <td>{m.address || '—'}</td>
+                    <td>{m.working_hours || '—'}</td>
+                    <td>
+                      <span style={{ fontSize: '.75rem', color: m.tb_device_id ? '#22c55e' : '#ef4444' }}>
+                        {m.tb_device_id ? '✓ povezan' : '✗ nije povezan'}
+                      </span>
+                    </td>
+                    <td><button className="btn btn-danger" style={{ padding: '.25rem .7rem', fontSize: '.8rem' }} onClick={() => deleteMenza(m.id)}>Ukloni</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -173,7 +186,7 @@ export default function AdminDashboard() {
                   {menze.map(m => (
                     <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '.5rem', fontWeight: 400, marginBottom: '.3rem' }}>
                       <input type="checkbox" checked={(form.menza_ids||[]).includes(m.id)} onChange={() => toggleMenzaAccess(m.id)} />
-                      {m.name}
+                      {m.name}{m.location ? ` — ${m.location}` : ''}
                     </label>
                   ))}
                 </div>
@@ -188,26 +201,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {modal === 'menza' && (
-        <div className="modal-overlay" onClick={() => setModal(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h2>Nova menza</h2>
-            <form onSubmit={createMenza}>
-              <div className="form-group"><label>Naziv</label><input required value={form.name||''} onChange={e => setForm({...form, name: e.target.value})} /></div>
-              <div className="form-group"><label>Lokacija</label><input value={form.location||''} onChange={e => setForm({...form, location: e.target.value})} /></div>
-              <div className="form-group">
-                <label>Broj zona (1–10)</label>
-                <input type="number" min="1" max="10" value={form.zone_count||2} onChange={e => setForm({...form, zone_count: e.target.value})} />
-              </div>
-              {error && <p className="error-msg">{error}</p>}
-              <div style={{ display: 'flex', gap: '.5rem', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setModal(null)}>Odustani</button>
-                <button type="submit" className="btn btn-primary">Dodaj</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
       {modal === 'access' && accessUser && (
         <div className="modal-overlay" onClick={() => setModal(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
