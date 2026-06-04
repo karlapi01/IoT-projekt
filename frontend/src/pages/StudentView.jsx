@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ZoneCard from '../components/ZoneCard';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ResponsiveContainer } from 'recharts';
@@ -234,21 +235,7 @@ export default function StudentView() {
 
                 <p className="section-title">Zone čekanja</p>
                 <div className="grid-2">
-                  {zones.map(z => (
-                    <div key={z.id} className={`zone-card ${z.occupied ? 'occupied' : 'free'}`}>
-                      <div className={`zone-dot ${z.occupied ? 'occupied' : 'free'}`}></div>
-                      <div style={{ fontWeight: 700, fontSize: '1rem', margin: '.3rem 0' }}>{z.name}</div>
-                      {z.is_virtual === 1 && <div style={{ fontSize: '.75rem', color: '#94a3b8', marginBottom: '.3rem' }}>virtualni senzor</div>}
-                      <span className={`badge ${z.occupied ? 'badge-red' : 'badge-green'}`}>
-                        {z.occupied ? 'Zauzeto' : 'Slobodno'}
-                      </span>
-                      {z.last_update && (
-                        <p style={{ fontSize: '.75rem', color: '#94a3b8', marginTop: '.4rem' }}>
-                          {new Date(z.last_update + 'Z').toLocaleTimeString('hr')}
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                  {zones.map(z => <ZoneCard key={z.id} zone={z} />)}
                 </div>
 
                 <p style={{ fontSize: '.78rem', color: '#94a3b8', marginTop: '1.5rem', textAlign: 'right' }}>
