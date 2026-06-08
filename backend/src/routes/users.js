@@ -3,13 +3,11 @@ const bcrypt = require('bcryptjs');
 const db = require('../db/schema');
 const auth = require('../middleware/auth');
 
-// Admin: list all users
 router.get('/', auth('admin'), (req, res) => {
   const users = db.prepare('SELECT id, name, email, role, created_at FROM users').all();
   res.json(users);
 });
 
-// Admin: create customer or student
 router.post('/', auth('admin'), (req, res) => {
   const { name, email, password, role, menza_ids } = req.body;
 
@@ -35,7 +33,6 @@ router.post('/', auth('admin'), (req, res) => {
   }
 });
 
-// Admin: update customer menza access
 router.put('/:id/menze', auth('admin'), (req, res) => {
   const { menza_ids } = req.body;
   db.prepare('DELETE FROM customer_menza_access WHERE customer_id = ?').run(req.params.id);
@@ -46,13 +43,11 @@ router.put('/:id/menze', auth('admin'), (req, res) => {
   res.json({ ok: true });
 });
 
-// Admin: get customer menza access
 router.get('/:id/menze', auth('admin'), (req, res) => {
   const menze = db.prepare('SELECT menza_id FROM customer_menza_access WHERE customer_id = ?').all(req.params.id);
   res.json(menze.map(m => m.menza_id));
 });
 
-// Admin: delete user
 router.delete('/:id', auth('admin'), (req, res) => {
   if (parseInt(req.params.id) === req.user.id) {
     return res.status(400).json({ error: 'Cannot delete your own account' });

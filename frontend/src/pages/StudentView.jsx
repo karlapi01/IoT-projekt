@@ -256,7 +256,7 @@ export default function StudentView() {
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
               <button className="btn btn-primary" onClick={locateMe} disabled={locating}>
-                {locating ? 'Tražim lokaciju...' : '📍 Prikaži moju lokaciju'}
+                {locating ? 'Tražim lokaciju...' : 'Prikaži moju lokaciju'}
               </button>
               {userPos && <span style={{ fontSize: '.85rem', color: '#64748b' }}>Lokacija pronađena</span>}
               {geoError && <span style={{ fontSize: '.85rem', color: '#ef4444' }}>{geoError}</span>}

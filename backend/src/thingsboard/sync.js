@@ -28,7 +28,6 @@ async function syncMenzeFromThingsBoard() {
     return;
   }
 
-  // Remove stale rows FIRST so they can't cause UNIQUE conflicts during updates
   const tbAssetIds = menzaAssets.map(a => a.id.id);
   const localTbMenze = db.prepare('SELECT id, name, tb_asset_id FROM menze WHERE tb_asset_id IS NOT NULL').all();
   for (const m of localTbMenze) {
@@ -42,7 +41,6 @@ async function syncMenzeFromThingsBoard() {
     const assetId = asset.id.id;
     const name = asset.name;
 
-    // Get linked device (FROM asset Contains DEVICE)
     let deviceId = null;
     try {
       const rels = await tbGet(
@@ -59,7 +57,6 @@ async function syncMenzeFromThingsBoard() {
       console.warn(`[TB Sync] ${name}: failed to fetch relations — ${err.message}`);
     }
 
-    // Get parent lokacija name (TO asset Contains this asset)
     let location = null;
     try {
       const rels = await tbGet(
@@ -73,7 +70,6 @@ async function syncMenzeFromThingsBoard() {
       }
     } catch (_) {}
 
-    // Get server attributes (address, lat, lng, workingHours)
     let address = null, lat = null, lng = null, workingHours = null;
     try {
       const attrs = await tbGet(
@@ -90,7 +86,6 @@ async function syncMenzeFromThingsBoard() {
     const existing = db.prepare('SELECT * FROM menze WHERE tb_asset_id = ?').get(assetId);
 
     if (existing) {
-      // Check if another menza already claims this device — means TB relations are misconfigured
       if (deviceId) {
         const conflict = db.prepare('SELECT name FROM menze WHERE tb_device_id=? AND tb_asset_id!=?').get(deviceId, assetId);
         if (conflict) {

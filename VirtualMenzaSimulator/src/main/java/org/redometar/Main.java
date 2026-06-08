@@ -11,7 +11,7 @@ public class Main {
     // interval slanja
     private static final int INTERVAL_SECONDS = 2;
 
-    static void main() {
+    public static void main(String[] args) {
         System.out.println("Redometar virtual cafeteria simulator started");
         System.out.println("Broker: " + BROKER_URL);
 
